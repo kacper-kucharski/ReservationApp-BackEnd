@@ -436,6 +436,8 @@ namespace ReservationApp_BackEnd
                 connection.Close();
             }
 
+            
+
             bool check = false;
             while (!check)
             {
@@ -456,10 +458,234 @@ namespace ReservationApp_BackEnd
                 }
             }
 
-            Console.WriteLine("What do you want to change?");
-            Console.WriteLine("1-Datum");
-            Console.WriteLine("2-Tijd");
-            Console.WriteLine("3-Tafel Nummer");
+            check = false;
+            while (!check)
+            {
+                Console.WriteLine("What do you want to change?");
+                Console.WriteLine("1-Datum");
+                Console.WriteLine("2-Tijd");
+                Console.WriteLine("3-Tafel Nummer");
+                Console.WriteLine("4-Restaurant Id");
+                int changeOption = Convert.ToInt32(Console.ReadLine());
+                if (changeOption == 1)
+                {
+                    bool correctData = true;
+                    check = !check;
+                    string newDate = "";
+                    Console.WriteLine("Changing Datum");
+                    Console.WriteLine("Your Current Date is: " + foundReservation.Date);
+
+                    check = false;
+                    while(!check)
+                    {
+                        Console.WriteLine("Which date do you want it to switch to?");
+                        newDate = Console.ReadLine();
+                        DateTime newDateTime = DateTime.Parse(newDate);
+
+                        
+                        if (newDateTime != foundReservation.Date.Date)
+                        {
+                            newDate += " " + foundReservation.Date.TimeOfDay;
+
+                            string q = $"SELECT * FROM [reservering] WHERE datum='{newDate}'";
+
+                            List<int> restaurantIds = new List<int>();
+                            List<int> tafelNummers = new List<int>();
+                            List<DateTime> datums = new List<DateTime>();
+
+                            try
+                            {
+                                SqlConnection con = new SqlConnection("Data Source=luxefood.database.windows.net;Initial Catalog=LuxeFoods;User ID=Klees;Password=Johnny69;Connect Timeout=60;Encrypt=True;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
+                                con.Open();
+                                if (con.State == System.Data.ConnectionState.Open)
+                                {
+
+                                    SqlCommand cmd = new SqlCommand(q, con);
+
+                                    cmd.ExecuteNonQuery();
+
+
+                                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                                    DataTable dt = new DataTable();
+                                    da.Fill(dt);
+                                    foreach (DataRow dr in dt.Rows)
+                                    {
+                                        datums.Add(Convert.ToDateTime(dr["datum"].ToString()));
+                                        restaurantIds.Add(Convert.ToInt32(dr["restaurantId"].ToString()));
+                                        tafelNummers.Add(Convert.ToInt32(dr["tafelNummer"].ToString()));
+                                    }
+                                }
+                                con.Close();
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(ex.Message);
+                            }
+                            int count = 0;
+
+                            foreach (int x in restaurantIds)
+                            {
+                                if (x == foundReservation.restaurantId && tafelNummers[count] == foundReservation.tableNr && foundReservation.Date.TimeOfDay == datums[count].TimeOfDay)
+                                {
+                                    Console.WriteLine("This place has already been taken");
+                                    correctData = false;
+                                }
+                                count++;
+                            }
+                            check = !check;
+                        }
+                        else
+                        {
+                            Console.WriteLine("You entered the same date!");
+                        }
+                    }
+
+                    if (correctData)
+                    {
+                        try
+                        {
+                            SqlCommand Command = new SqlCommand("UPDATE reservering SET datum='" + newDate + "' WHERE Id='" + foundReservation.Id + "'", connection);
+                            connection.Open();
+                            Command.ExecuteNonQuery();
+
+                            connection.Close();
+                            Console.WriteLine("Succesfully Changed the date to " + newDate);
+                        } catch (Exception error)
+                        {
+                            Console.WriteLine(error);
+                        }   
+                    }
+                }
+                else if (changeOption == 2)
+                {
+                    bool correctData = true;
+                    check = !check;
+                    string newTime = "";
+                    string dateString = "";
+                    Console.WriteLine("Changing Tijd");
+                    Console.WriteLine("Your Current DateTime is: " + foundReservation.Date);
+
+                    check = false;
+                    while (!check)
+                    {
+                        Console.WriteLine("Which time do you want it to switch to? just put in the Hour");
+                        int hour = 0;
+                        while (hour < 16 || hour > 23)
+                        {
+                            newTime = Console.ReadLine();
+
+                            hour = Convert.ToInt32(newTime);
+                        }
+
+                        TimeSpan newTimeSpan = new TimeSpan(hour, 0, 0);
+
+
+                        //date += " " + ts;
+                        //parsedDate = DateTime.Parse(date);
+
+
+                        if (newTimeSpan != foundReservation.Date.TimeOfDay)
+                        {
+                            dateString = foundReservation.Date.Year + "-" + foundReservation.Date.Month + "-" + foundReservation.Date.Day;
+                            dateString += " " + newTimeSpan;
+
+                            DateTime dateDateTime = DateTime.Parse(dateString);
+                            
+
+                            string q = $"SELECT * FROM [reservering] WHERE datum='{dateString}'";
+
+                            List<int> restaurantIds = new List<int>();
+                            List<int> tafelNummers = new List<int>();
+                            List<DateTime> datums = new List<DateTime>();
+
+                            try
+                            {
+                                SqlConnection con = new SqlConnection("Data Source=luxefood.database.windows.net;Initial Catalog=LuxeFoods;User ID=Klees;Password=Johnny69;Connect Timeout=60;Encrypt=True;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
+                                con.Open();
+                                if (con.State == System.Data.ConnectionState.Open)
+                                {
+
+                                    SqlCommand cmd = new SqlCommand(q, con);
+
+                                    cmd.ExecuteNonQuery();
+
+
+                                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                                    DataTable dt = new DataTable();
+                                    da.Fill(dt);
+                                    foreach (DataRow dr in dt.Rows)
+                                    {
+                                        datums.Add(Convert.ToDateTime(dr["datum"].ToString()));
+                                        restaurantIds.Add(Convert.ToInt32(dr["restaurantId"].ToString()));
+                                        tafelNummers.Add(Convert.ToInt32(dr["tafelNummer"].ToString()));
+                                    }
+                                }
+                                con.Close();
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine(ex.Message);
+                            }
+                            int count = 0;
+
+                            foreach (int x in restaurantIds)
+                            {
+                                if (x == foundReservation.restaurantId && tafelNummers[count] == foundReservation.tableNr && dateDateTime.Date.TimeOfDay == datums[count].TimeOfDay)
+                                {
+                                    Console.WriteLine("This place has already been taken");
+                                    correctData = false;
+                                }
+                                count++;
+                            }
+                            check = !check;
+                        }
+                        else
+                        {
+                            Console.WriteLine("You entered the same date!");
+                        }
+                    }
+
+                    if (correctData)
+                    {
+                        try
+                        {
+                            SqlCommand Command = new SqlCommand("UPDATE reservering SET datum='" + dateString + "' WHERE Id='" + foundReservation.Id + "'", connection);
+                            connection.Open();
+                            Command.ExecuteNonQuery();
+
+                            connection.Close();
+                            Console.WriteLine("Succesfully Changed the date to " + dateString);
+                        }
+                        catch (Exception error)
+                        {
+                            Console.WriteLine(error);
+                        }
+                    }
+
+
+                    //Stay at current restaurant id
+                    //Stay at the same date
+                    //Stay at the same table number
+                }
+                else if (changeOption == 3)
+                {
+                    Console.WriteLine("Changing Tafel Nummer");
+                    //Stay at the same restaurant id
+                    //Stay at the same time
+                    //Stay at the same date
+                }
+                else if (changeOption == 4)
+                {
+                    Console.WriteLine("Changing Restaurant");
+                    //Stay at the same time
+                    //Stay at the same date
+                    //Stay at the same table number
+                }
+                else
+                {
+                    Console.WriteLine("Enter a valid option");
+                }
+            }
         }
     }
 }
