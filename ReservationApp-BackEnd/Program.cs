@@ -9,6 +9,7 @@ using System.Text;
 
 namespace ReservationApp_BackEnd
 {
+    // Class that stores data of takenSeats
     public class TakenSeats
     {
         public DateTime takenTime { get; set; }
@@ -24,6 +25,7 @@ namespace ReservationApp_BackEnd
 
     class Program
     {
+        //Connection string to connect with the database
         SqlConnection connection = new SqlConnection("Data Source=luxefood.database.windows.net;Initial Catalog=LuxeFoods;User ID=Klees;Password=Johnny69;Connect Timeout=60;Encrypt=True;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
 
         static void Main(string[] args)
@@ -39,6 +41,7 @@ namespace ReservationApp_BackEnd
             Console.WriteLine("\nEnter your Password: ");
             string userPassword = Console.ReadLine();
 
+            //Check of beide ingevuld zijn, als wel dan data naar database versturen om te kijken of bestaat in de database
             if (userEmail == "" || userPassword == "")
             {
                 Console.WriteLine("Vul alle velden in.");
@@ -59,7 +62,7 @@ namespace ReservationApp_BackEnd
                         SqlCommand cmnd = new SqlCommand(que, con);
                         cmd.ExecuteNonQuery();
                         
-
+                        // Kijk of user in de database staat en als wel zijn ID opslaan
                         using (SqlDataReader reader = cmnd.ExecuteReader())
                         {
                             while (reader.Read())
@@ -68,14 +71,18 @@ namespace ReservationApp_BackEnd
                             }
                         }
 
+                        // Connectie met database beindigen
                         con.Close();
+                        //Alle account met zelde email zoals gegeven in login in een dataset zetten
                         SqlDataAdapter da = new SqlDataAdapter(cmd);
                         DataTable dt = new DataTable();
                         da.Fill(dt);
+                        //Loopen door de dataset om te kijken of de wachtwoord over een komt met de geven wachtwoord
                         foreach (DataRow dr in dt.Rows)
                         {
                             password = dr["password"].ToString();
                         }
+                        //Als alles klopt gebruiker inloggen of anders error message geven
                         if (typedPassword == password)
                         {
                             Console.WriteLine("Je bent nu ingelogd.");
@@ -98,7 +105,7 @@ namespace ReservationApp_BackEnd
                 Console.WriteLine("\n\nWhat do you want to do?");
                 Console.WriteLine("1-Make Reservation 2-Check Reservation 3-Change Reservation 4-Exit");
                 val = Console.ReadLine();
-                
+
                 try
                 {
                     a = Convert.ToInt32(val);
@@ -107,7 +114,6 @@ namespace ReservationApp_BackEnd
                 {
                     Console.WriteLine("Please Enter a Number");
                 }
-
                 if (a == 1)
                 {
                     Program program = new Program();
@@ -134,8 +140,10 @@ namespace ReservationApp_BackEnd
             Console.WriteLine("Escaped the while loop!");
         }
 
+        //Gebruik de Cryptography en Text library om de gegeven string te hashen
         static string EncryptPassword(string text)
         {
+            //MD5 maakt een hashed wachtwoord in vorm van bytes dus het moet nog geconverteerd worden naar een string
             using (MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider())
             {
                 UTF8Encoding utf8 = new UTF8Encoding();
@@ -152,6 +160,7 @@ namespace ReservationApp_BackEnd
 
             List<string> RestaurantNames = new List<string>();
 
+            //Maak een request naar de database om alle restaurant namen in een List op te slaan
             SqlCommand read = new SqlCommand("select * from restaurant", connection);
             connection.Open();
             using (SqlDataReader reader = read.ExecuteReader())
@@ -161,12 +170,16 @@ namespace ReservationApp_BackEnd
                     RestaurantNames.Add(reader.GetString(1));
 
                 }
+
+                // Connectie met database beindigen
                 connection.Close();
             }
 
             Console.WriteLine("Which restaurant do you want to make a reservation for?");
             string restaurantChoice = "";
             int incr = 1;
+
+            // Restaurant kiezen met wat bug defense
             foreach (string x in RestaurantNames)
             {
                 restaurantChoice += incr + "-" + x + " ";
@@ -188,10 +201,12 @@ namespace ReservationApp_BackEnd
             string date;
             date = Console.ReadLine();
 
+            // Convert de data string naar een DateTime variabele
             DateTime parsedDate = DateTime.Parse(date);
       
             Console.WriteLine("\nThis is your date: " + parsedDate);
 
+            // Initializeer aantal Lists
             List<DateTime> availableTimes = new List<DateTime>() {
                 new DateTime(parsedDate.Year, parsedDate.Month, parsedDate.Day, 16, 00, 00),
                 new DateTime(parsedDate.Year, parsedDate.Month, parsedDate.Day, 17, 00, 00),
@@ -204,6 +219,7 @@ namespace ReservationApp_BackEnd
             List<TakenSeats> takenTimesWithTables = new List<TakenSeats>();
             List<TakenSeats> availableTimesWithTables = new List<TakenSeats>();
 
+            // Algorithm om een List vol te maken met alle mogelijke tijden om te reserveren y = aantal restauranten (1-2), i = lengte van de availableTimes List (max 7) en x = de max mogelijke tafels (max 55)
             for (int y = 1; y < RestaurantNames.Count+1; y++)
             {
                 for (int i = 0; i < availableTimes.Count; i++)
@@ -215,28 +231,38 @@ namespace ReservationApp_BackEnd
                 }
             }
             
+            // Request naar Databse sturen om alle gereserveerde tijden op de eerder gegeven datum te krijgen en in takenTimesWithTables List te zetten
             SqlCommand readCommand = new SqlCommand("select datum, tafelNummer, restaurantId from reservering where datum between '" + parsedDate.Month + "/" + parsedDate.Day + "/" + parsedDate.Year + "' and '" + parsedDate.Month + "/" + parsedDate.Day + "/" + parsedDate.Year + " 23:59:59'", connection);
             connection.Open();
             using (SqlDataReader reader = readCommand.ExecuteReader())
             {
+
+                // De ontvangen data in eigen TakenSeats class zetten om die dan in een list te zetten zodat het makkelijker terug te vinden is.
                 while (reader.Read())
                 {
                     TakenSeats p1 = new TakenSeats(reader.GetDateTime(0), reader.GetInt32(1), reader.GetInt32(2));
                     takenTimesWithTables.Add(p1);
                 }
+
+                // Connectie met database beindigen
                 connection.Close();
             }
 
             Console.WriteLine("Succesfully finished getting all the available times");
 
+            // Kijken welke tafels al gereserveerd waren en die van de availableTimesWithTables verwijderen
             foreach (TakenSeats x in takenTimesWithTables)
             {
                 foreach (TakenSeats i in availableTimesWithTables.ToList())
                 {
+
+                    // Als restauranten niet zelfde iD hebben gelijk verwijderen
                     if (i.restaurantId != restaurantId)
                     {
                         availableTimesWithTables.Remove(i);
                     }
+
+                    // Overige restauranten die zelfde tafel nummer, reserverings tijd en restaurant id hebben ook verwijderen
                     if ((x.takenSeat == i.takenSeat) && (x.takenTime == i.takenTime) && (x.restaurantId == restaurantId))
                     {
                         availableTimesWithTables.Remove(i);
@@ -244,6 +270,7 @@ namespace ReservationApp_BackEnd
                 }
             }
 
+            //Alleen de overgebleven werkelijke availableTimesWithTables laten zien
             Console.WriteLine("Those are all the available times for " + parsedDate.Year + "-" + parsedDate.Month + "-" + parsedDate.Day + ": ");
             foreach (TakenSeats x in availableTimesWithTables)
             {
@@ -252,6 +279,7 @@ namespace ReservationApp_BackEnd
 
             Console.WriteLine("Please choose at what hour you want to make reservation: ");
 
+            // Security check of de uren tussen de openings tijden zitten
             int hour = 0;   
             while (hour < 16 || hour > 23)
             {
@@ -260,12 +288,16 @@ namespace ReservationApp_BackEnd
                 hour = Convert.ToInt32(time);
             }
             
+            // De uur van int naar een TimeSpan converteren en aan de date string toevoegen (date blijft nog steeds een string)
             TimeSpan ts = new TimeSpan(hour, 0, 0);
             date += " " + ts;
+
+            // Date opnieuw naar DateTime variabele omzetten voor makkelijkere code writing
             parsedDate = DateTime.Parse(date);
 
             int tableNumber = 0;
-           
+
+            //Tafel keuze
             Console.WriteLine("\nWhich table do you want to reserve? Enter a number: ");
             string tableNumberString = Console.ReadLine();
             try
@@ -277,6 +309,7 @@ namespace ReservationApp_BackEnd
                 Console.WriteLine("Please enter a number");
             }
 
+            // Checken of alles klopt
             Console.WriteLine("Your reservation is Finished!");
             Console.WriteLine("This is how you reservation looks like!");
             Console.WriteLine("UserId: " + userId + ", RestaurantId: " + restaurantId + ", Date: " + parsedDate + ", Table Number: " + tableNumber);
@@ -285,12 +318,18 @@ namespace ReservationApp_BackEnd
             {
                 Console.WriteLine("\nDo you want to submit the reservation? (1-yes/2-no)");
                 string answer = Console.ReadLine();
+
+                // Als 1 dan data versturen
                 int answer32 = Convert.ToInt32(answer);
                 if (answer32 == 1)
                 {
                     bool trueData = true;
+
+                    // Security check om te kijken of de uiteindelijke data zeker beschikbaar is
                     foreach (TakenSeats x in takenTimesWithTables)
                     {
+
+                        // Als gereserveerde tijd zelfde is als gekozen tijd en tafel nummer zelfde is als gekozen tafel nummer en restaurant ids zijn ook zelfde dan is die plek als gereserveerd door iemand anders
                         if (x.takenTime == parsedDate && x.takenSeat == tableNumber && x.restaurantId == restaurantId)
                         {
                             Console.WriteLine("There is already an reservation made for this time and table! Please choose another time or table.");
@@ -298,14 +337,22 @@ namespace ReservationApp_BackEnd
                             break;
                         }
                     }
+
+                    // Als dit niet klopt dan sturen wij de data naar de database
                     connection.Open();
                     if (connection.State == System.Data.ConnectionState.Open && trueData)
                     {
+
+                        // SQL Command om de RestaurantId, UserId, date en tableNumber in de database in de juiste plekken te zetten
                         string q = $"INSERT INTO [reservering] (restaurantId, klantId, datum, tafelNummer) VALUES  ('{restaurantId}', '{userId}', '{date}', '{tableNumber}')";
 
                         try
                         {
+
+                            // de SQL command in een command zetten met de erbij toegevoegde connection string
                             SqlCommand cmd = new SqlCommand(q, connection);
+
+                            // Execute een non query command in de database
                             cmd.ExecuteNonQuery();
 
                             
@@ -314,21 +361,28 @@ namespace ReservationApp_BackEnd
                         }
                         catch (Exception ex)
                         {
+                            //Error handler, print gelijk de error uit
                             Console.WriteLine(ex.Message);
                         }
                     }
+
+                    // Connectie met database beindigen
                     connection.Close();
+
+                //Als 2 dan reservering annuleren
                 } else if (answer32 == 2)
                 {
                     Console.WriteLine("Canceling Reservation....");
                     submitChecked = !submitChecked;
-                } else
+                } 
+                else
                 {
                     Console.WriteLine("Please Enter either y or n!");
                 }
             }
         }
 
+        // Class die alle data van de reservatie van de database opslaat
         class reservation
         {
             public int Id { get; set; }
@@ -347,6 +401,7 @@ namespace ReservationApp_BackEnd
             }
         }
 
+        // Class die alle data van de restauranten van de database opslaat
         class restaurants
         {
             public int Id { get; set; }
@@ -368,35 +423,47 @@ namespace ReservationApp_BackEnd
         {
             Console.WriteLine("These are your current reservation:\n");
 
+            // List die uit reservatie class objecten bestaat
             List<reservation> userReservations = new List<reservation>();
 
+            //Connectie string
             SqlConnection connection = new SqlConnection("Data Source=luxefood.database.windows.net;Initial Catalog=LuxeFoods;User ID=Klees;Password=Johnny69;Connect Timeout=60;Encrypt=True;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
+           
+            // SQL command om alle reserveringen met de gegeven KlantId te geven
             SqlCommand readCommand = new SqlCommand("select * from reservering where klantId='" + userId + "'", connection);
             connection.Open();
             using (SqlDataReader reader = readCommand.ExecuteReader())
             {
                 while (reader.Read())
                 {
+                    // Al de gegeven reserveringen in een object zetten en dan in de List opslaan
                     reservation _ = new reservation(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetDateTime(3), reader.GetInt32(4));
                     userReservations.Add(_);
                 }
+
+                // Connectie met database beindigen
                 connection.Close();
             }
 
             List<restaurants> allRestaurants = new List<restaurants>();
             
+            // SQL Command om alle restaurant data te krijgen
             SqlCommand restReadCommand = new SqlCommand("select * from restaurant", connection);
             connection.Open();
             using (SqlDataReader reader = restReadCommand.ExecuteReader())
             {
                 while (reader.Read())
                 {
+                    // Alle restaurant info in een object zetten en in de list opslaan
                     restaurants _ = new restaurants(reader.GetInt32(0), reader.GetString(1), reader.GetInt32(3));
                     allRestaurants.Add(_);
                 }
+
+                // Connectie met database beindigen
                 connection.Close();
             }
 
+            // Alle reservering van deze user uitprinten format(id:tt tttt yyyy-mm-dd hh-mm-ss tt)
             foreach (reservation x in userReservations)
             {
                 Console.WriteLine("id: " + x.Id + " " + allRestaurants[x.restaurantId-1].Naam + " " + x.Date + " Gereserveerde Tafels: " + x.tableNr);
@@ -406,10 +473,14 @@ namespace ReservationApp_BackEnd
         static void changeReservation(int userId)
         {
             Console.WriteLine("Enter your reservation id");
-            int searchId = Convert.ToInt32(Console.ReadLine());
 
+            //Convert de string gelijk naar een int
+            int searchId = Convert.ToInt32(Console.ReadLine());
+            
+            // Gevonden reservatie als een reservatie class initializeren met fake data
             reservation foundReservation = new reservation(0,0,0,new DateTime(),0);
 
+            // SQL Request maken om de gegeven reservering ID in database te vinden
             SqlConnection connection = new SqlConnection("Data Source=luxefood.database.windows.net;Initial Catalog=LuxeFoods;User ID=Klees;Password=Johnny69;Connect Timeout=60;Encrypt=True;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
             SqlCommand readCommand = new SqlCommand("select * from reservering where Id='" + searchId + "'", connection);
             connection.Open();
@@ -417,22 +488,30 @@ namespace ReservationApp_BackEnd
             {
                 while (reader.Read())
                 {
+                    // Als gevonden dan wordt de data in de eerder gemaakte class opgeslagen
                     foundReservation = new reservation(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetDateTime(3), reader.GetInt32(4));
                 }
+
+                // Connectie met database beindigen
                 connection.Close();
             }
 
+            // List met alle restauranten te maken die alleen onze eigen classen (restaurants) zijn
             List<restaurants> allRestaurants = new List<restaurants>();
 
+            // SQL Request maken om alle data van alle restauranten te krijgen
             SqlCommand restReadCommand = new SqlCommand("select * from restaurant", connection);
             connection.Open();
             using (SqlDataReader reader = restReadCommand.ExecuteReader())
             {
                 while (reader.Read())
                 {
+                    // De ontvangen data in een restaurants object zetten en dan in de List
                     restaurants _ = new restaurants(reader.GetInt32(0), reader.GetString(1), reader.GetInt32(3));
                     allRestaurants.Add(_);
                 }
+
+                // Connectie met database beindigen
                 connection.Close();
             }
 
@@ -441,6 +520,7 @@ namespace ReservationApp_BackEnd
             bool check = false;
             while (!check)
             {
+                // Checken of de reservatie klopt als niet dan opnieuw kijken
                 Console.WriteLine("Is this your reservation? (y/n) " + foundReservation.Id + " " + allRestaurants[foundReservation.restaurantId - 1].Naam + " " + foundReservation.Date + " tafel nr. " + foundReservation.tableNr);
                 string answer = Console.ReadLine();
                 if (answer == "y")
@@ -467,6 +547,8 @@ namespace ReservationApp_BackEnd
                 Console.WriteLine("3-Tafel Nummer");
                 Console.WriteLine("4-Restaurant Id");
                 int changeOption = Convert.ToInt32(Console.ReadLine());
+
+                // Als 1 dan datum veranderen
                 if (changeOption == 1)
                 {
                     bool correctData = true;
@@ -479,14 +561,20 @@ namespace ReservationApp_BackEnd
                     while(!check)
                     {
                         Console.WriteLine("Which date do you want it to switch to?");
+
+                        // nieuwe datum als string houden
                         newDate = Console.ReadLine();
+
+                        // nieuwe datum in een DateTime variabele opslaan om makkelijker de object te kunnen deconstructen
                         DateTime newDateTime = DateTime.Parse(newDate);
 
-                        
+                        //Checken of de nieuwe datum niet zelfde is als de bestaande datum
                         if (newDateTime != foundReservation.Date.Date)
                         {
+                            // de zelfe tijd van de oude reservatie op de nieuwe datum string toevoegen
                             newDate += " " + foundReservation.Date.TimeOfDay;
 
+                            //SQL request maken voor alle reserveringen met de gegeven datum te krijgen
                             string q = $"SELECT * FROM [reservering] WHERE datum='{newDate}'";
 
                             List<int> restaurantIds = new List<int>();
@@ -495,19 +583,23 @@ namespace ReservationApp_BackEnd
 
                             try
                             {
+                                // SQL Connection string
                                 SqlConnection con = new SqlConnection("Data Source=luxefood.database.windows.net;Initial Catalog=LuxeFoods;User ID=Klees;Password=Johnny69;Connect Timeout=60;Encrypt=True;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
                                 con.Open();
                                 if (con.State == System.Data.ConnectionState.Open)
                                 {
-
+                                    // SQL Request in een SqlCommand class zetten met de SQL connection string erbij
                                     SqlCommand cmd = new SqlCommand(q, con);
 
+                                    // SQL Request uitvoeren
                                     cmd.ExecuteNonQuery();
 
-
+                                    //De ontvangen data in een dataset zetten
                                     SqlDataAdapter da = new SqlDataAdapter(cmd);
                                     DataTable dt = new DataTable();
                                     da.Fill(dt);
+
+                                    //Loopen door de dataset en alle ontvangen string naar de nodige type veranderen in de passende List zetten
                                     foreach (DataRow dr in dt.Rows)
                                     {
                                         datums.Add(Convert.ToDateTime(dr["datum"].ToString()));
@@ -515,14 +607,18 @@ namespace ReservationApp_BackEnd
                                         tafelNummers.Add(Convert.ToInt32(dr["tafelNummer"].ToString()));
                                     }
                                 }
+
+                                // Connectie met database beindigen
                                 con.Close();
                             }
+                            // Error handler die de message gelijk print
                             catch (Exception ex)
                             {
                                 Console.WriteLine(ex.Message);
                             }
                             int count = 0;
 
+                            // Kijken voor elke ontvangen reservering met zelfde datum of die ook op zelfde restaurant, tafel nummer en tijd gereserveerd zijn, als wel dan niks doen
                             foreach (int x in restaurantIds)
                             {
                                 if (x == foundReservation.restaurantId && tafelNummers[count] == foundReservation.tableNr && foundReservation.Date.TimeOfDay == datums[count].TimeOfDay)
@@ -539,15 +635,19 @@ namespace ReservationApp_BackEnd
                             Console.WriteLine("You entered the same date!");
                         }
                     }
-
+                    // Als correctData door vorige check niet false is dan wordt de data gestuurd
                     if (correctData)
                     {
                         try
                         {
+                            // SQL UPDATE Request om de nieuwe datum voor de gegeven reservering id te veranderen
                             SqlCommand Command = new SqlCommand("UPDATE reservering SET datum='" + newDate + "' WHERE Id='" + foundReservation.Id + "'", connection);
                             connection.Open();
+
+                            // Execute de SQL UPDATE Request
                             Command.ExecuteNonQuery();
 
+                            // Connectie met database beindigen
                             connection.Close();
                             Console.WriteLine("Succesfully Changed the date to " + newDate);
                         } catch (Exception error)
@@ -556,6 +656,7 @@ namespace ReservationApp_BackEnd
                         }   
                     }
                 }
+                // Als 2 dan tijd veranderen
                 else if (changeOption == 2)
                 {
                     bool correctData = true;
@@ -578,10 +679,6 @@ namespace ReservationApp_BackEnd
                         }
 
                         TimeSpan newTimeSpan = new TimeSpan(hour, 0, 0);
-
-
-                        //date += " " + ts;
-                        //parsedDate = DateTime.Parse(date);
 
 
                         if (newTimeSpan != foundReservation.Date.TimeOfDay)
@@ -661,12 +758,8 @@ namespace ReservationApp_BackEnd
                             Console.WriteLine(error);
                         }
                     }
-
-
-                    //Stay at current restaurant id
-                    //Stay at the same date
-                    //Stay at the same table number
                 }
+                // Als 3 dan Tafel nummer veranderen
                 else if (changeOption == 3)
                 {
                     Console.WriteLine("Changing Tafel Nummer");
@@ -674,6 +767,7 @@ namespace ReservationApp_BackEnd
                     //Stay at the same time
                     //Stay at the same date
                 }
+                // Als 4 dan Restaurant veranderen
                 else if (changeOption == 4)
                 {
                     Console.WriteLine("Changing Restaurant");
